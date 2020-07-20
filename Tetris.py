@@ -146,7 +146,7 @@ class Game:
     def __init__(self):
         self.dp_height = 20 * SQUARE_SIZE
         self.dp_width = 16 * SQUARE_SIZE
-        self.tela: pygame.Surface = pygame.display.set_mode((self.dp_width, self.dp_height), pygame.FULLSCREEN)
+        self.tela: pygame.Surface = pygame.display.set_mode((self.dp_width, self.dp_height), pygame.RESIZABLE)
         self.next = choice([Square, Line, Z, S, L, J, T])(self.tela)
         self.block = NotImplemented
         self.new_block()
@@ -160,6 +160,16 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+            elif event.type == pygame.VIDEORESIZE:
+                global SQUARE_SIZE, IMAGES
+                SQUARE_SIZE = int(min(event.size[0]/16, event.size[1]/20))
+                IMAGES = {
+                    name[:-4]: pygame.transform.scale(pygame.image.load(f"Images/{name}"), (SQUARE_SIZE, SQUARE_SIZE))
+                    for name in listdir('Images')}
+                self.block.image = pygame.transform.scale(self.block.image, (SQUARE_SIZE, SQUARE_SIZE))
+                self.next.image = pygame.transform.scale(self.next.image, (SQUARE_SIZE, SQUARE_SIZE))
+                for image in self.fixados:
+                    image[2] = pygame.transform.scale(image[2], (SQUARE_SIZE, SQUARE_SIZE))
             elif event.type == pygame.KEYDOWN:
                 self.keys_pressed.append(event.key)
             elif event.type == pygame.KEYUP:
@@ -212,20 +222,27 @@ class Game:
             elif key == pygame.K_RIGHT:
                 self.block.right()
             elif key == pygame.K_UP:
-                Thread(target=self.block.rotate, kwargs={"fixed": self.fixados}).start()
+                try:
+                    Thread(target=self.block.rotate, kwargs={"fixed": self.fixados}).start()
+                except IndexError:
+                    pass
             elif key == pygame.K_DOWN:
                 if self.block.down():
                     self.points += 1
 
     def blit(self):
+        pygame.draw.rect(self.tela, (0, 0, 0), ((0, 0), (16 * SQUARE_SIZE + 2, 20 * SQUARE_SIZE + 2)))
         for block in self.fixados:
             self.tela.blit(block[2], (block[0] * SQUARE_SIZE, block[1] * SQUARE_SIZE))
+            if block[1] < 0:
+                self.running = False
 
         pygame.draw.rect(self.tela, (100, 100, 100), ((10*SQUARE_SIZE, 0), (6*SQUARE_SIZE, 20*SQUARE_SIZE)))
         pygame.draw.rect(self.tela, (10, 10, 10), ((11 * SQUARE_SIZE, SQUARE_SIZE), (4 * SQUARE_SIZE, 4 * SQUARE_SIZE)))
         self.next.show(SQUARE_SIZE*13, SQUARE_SIZE*3)
         points_img = pygame.font.SysFont('Agency FB', 40, True).render(f"Points: {self.points}", True, (255, 255, 255))
         self.tela.blit(points_img, (SQUARE_SIZE*11, SQUARE_SIZE*8))
+        self.block.blit()
 
     def loop(self):
         frames = 1
@@ -240,11 +257,11 @@ class Game:
             if frames % 3000 == 0 and fpdown > 20:
                 fpdown *= 0.80
 
-            self.block.blit()
             self.blit()
             pygame.display.update()
             frames += 1
             sleep(0.01)
+        print(f"Sua pontuação foi de {self.points} pontos")
 
     def new_block(self):
         self.block = self.next
