@@ -1,2 +1,3 @@
-.gitignore
 Alauan/
+build/
+__pycache__/

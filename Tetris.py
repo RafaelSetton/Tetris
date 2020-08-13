@@ -6,7 +6,7 @@ from os import listdir
 import pygame
 pygame.init()
 
-SQUARE_SIZE = 40
+SQUARE_SIZE = 37
 IMAGES = {name[:-4]: pygame.transform.scale(pygame.image.load(f"Images/{name}"), (SQUARE_SIZE, SQUARE_SIZE))
           for name in listdir('Images')}
 
@@ -52,7 +52,7 @@ class Block:
                     self.coords.append([x+min_x, y+min_y])
 
         for coord in self.coords:
-            if coord in [block[:2] for block in fixed]:
+            if coord in [block[:2] for block in fixed] or coord[1] > 19:
                 for pt in self.coords:
                     pt[1] -= 1
             elif coord[0] > 9:
@@ -63,7 +63,7 @@ class Block:
                 continue
             break
         for coord in self.coords:
-            if coord in [block[:2] for block in fixed]:
+            if coord in [block[:2] for block in fixed] or coord[1] > 19:
                 for pt in self.coords:
                     pt[1] -= 1
             elif coord[0] > 9:
@@ -147,6 +147,9 @@ class Game:
         self.dp_height = 20 * SQUARE_SIZE
         self.dp_width = 16 * SQUARE_SIZE
         self.tela: pygame.Surface = pygame.display.set_mode((self.dp_width, self.dp_height), pygame.RESIZABLE)
+        pygame.display.set_icon(IMAGES["Square"])
+        pygame.display.set_caption("Tetris")
+
         self.next = choice([Square, Line, Z, S, L, J, T])(self.tela)
         self.block = NotImplemented
         self.new_block()
@@ -216,7 +219,11 @@ class Game:
         self.points += int(len(deletions)**1.5 * 10)
 
     def move_handler(self):
-        for key in self.keys_pressed:
+        try:
+            key = self.keys_pressed[0]
+        except IndexError:
+            pass
+        else:
             if key == pygame.K_LEFT:
                 self.block.left()
             elif key == pygame.K_RIGHT:
@@ -240,13 +247,24 @@ class Game:
         pygame.draw.rect(self.tela, (100, 100, 100), ((10*SQUARE_SIZE, 0), (6*SQUARE_SIZE, 20*SQUARE_SIZE)))
         pygame.draw.rect(self.tela, (10, 10, 10), ((11 * SQUARE_SIZE, SQUARE_SIZE), (4 * SQUARE_SIZE, 4 * SQUARE_SIZE)))
         self.next.show(SQUARE_SIZE*13, SQUARE_SIZE*3)
-        points_img = pygame.font.SysFont('Agency FB', 40, True).render(f"Points: {self.points}", True, (255, 255, 255))
+        points_img = pygame.font.SysFont('Agency FB', SQUARE_SIZE, True)\
+            .render(f"Points: {self.points}", True, (255, 255, 255))
         self.tela.blit(points_img, (SQUARE_SIZE*11, SQUARE_SIZE*8))
         self.block.blit()
+
+    def music(self):
+        pygame.mixer_music.load("music.mp3")
+        while self.running:
+            pygame.mixer_music.play()
+            while pygame.mixer_music.get_busy() and self.running:
+                sleep(1)
+            pygame.mixer_music.stop()
+            pygame.mixer_music.rewind()
 
     def loop(self):
         frames = 1
         fpdown = 100
+        Thread(target=self.music).start()
         while self.running:
             self.tela.fill((30, 30, 30))
             if frames % int(fpdown) == 0:
@@ -268,6 +286,5 @@ class Game:
         self.next = choice([Square, Line, Z, S, L, J, T])(self.tela)
 
 
-gm = Game()
-gm.loop()
-print(gm.points)
+if __name__ == '__main__':
+    Game().loop()
